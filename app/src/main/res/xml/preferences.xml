@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="Punkt kamerowy">
+        <EditTextPreference
+            android:key="camera_name"
+            android:title="Nazwa punktu"
+            android:summary="Widoczna na ekranie, np. KAM01"
+            android:defaultValue="KAM01"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Polaczenie SRT">
+        <EditTextPreference
+            android:key="srt_host"
+            android:title="Adres serwera"
+            android:summary="IP lub domena VPS"
+            android:defaultValue=""
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:key="srt_port"
+            android:title="Port"
+            android:defaultValue="8890"
+            android:inputType="number"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:key="srt_streamid"
+            android:title="Stream ID"
+            android:summary="Identyfikator strumienia, np. kam01"
+            android:defaultValue="kam01"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            android:key="srt_latency"
+            android:title="Bufor (latency)"
+            android:summary="LTE/5G: 1000 ms. Stabilne Wi-Fi: 200-400 ms"
+            android:defaultValue="1000"
+            android:entries="@array/latency_labels"
+            android:entryValues="@array/latency_values" />
+        <EditTextPreference
+            android:key="srt_passphrase"
+            android:title="Haslo szyfrowania"
+            android:summary="10-79 znakow. Puste = bez szyfrowania"
+            android:defaultValue="" />
+        <ListPreference
+            android:key="srt_pbkeylen"
+            android:title="Sila szyfrowania"
+            android:defaultValue="128"
+            android:entries="@array/pbkeylen_labels"
+            android:entryValues="@array/pbkeylen_values" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Zrodlo obrazu">
+        <ListPreference
+            android:key="video_source"
+            android:title="Kamera"
+            android:summary="USB = grabber HDMI"
+            android:defaultValue="UVC"
+            android:entries="@array/source_labels"
+            android:entryValues="@array/source_values" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Wideo">
+        <ListPreference
+            android:key="video_resolution"
+            android:title="Rozdzielczosc"
+            android:defaultValue="1920x1080"
+            android:entries="@array/resolution_labels"
+            android:entryValues="@array/resolution_values" />
+        <ListPreference
+            android:key="video_fps"
+            android:title="Klatki na sekunde"
+            android:defaultValue="30"
+            android:entries="@array/fps_values"
+            android:entryValues="@array/fps_values" />
+        <EditTextPreference
+            android:key="video_bitrate"
+            android:title="Bitrate (kbps)"
+            android:summary="5000 = 5 Mbps"
+            android:defaultValue="5000"
+            android:inputType="number"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            android:key="video_codec"
+            android:title="Kodek"
+            android:summary="H265 = mniejsze pasmo, wieksze obciazenie telefonu"
+            android:defaultValue="H264"
+            android:entries="@array/codec_values"
+            android:entryValues="@array/codec_values" />
+        <ListPreference
+            android:key="video_keyframe"
+            android:title="Klatka kluczowa co (s)"
+            android:defaultValue="1"
+            android:entries="@array/keyframe_values"
+            android:entryValues="@array/keyframe_values" />
+        <SwitchPreferenceCompat
+            android:key="video_abr"
+            android:title="Adaptacyjny bitrate"
+            android:summary="Obniza jakosc zamiast gubic obraz przy slabym zasiegu"
+            android:defaultValue="true" />
+        <EditTextPreference
+            android:key="video_bitrate_min"
+            android:title="Minimalny bitrate (kbps)"
+            android:defaultValue="2000"
+            android:inputType="number"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Audio">
+        <SwitchPreferenceCompat
+            android:key="audio_enabled"
+            android:title="Wysylaj dzwiek"
+            android:defaultValue="true" />
+        <EditTextPreference
+            android:key="audio_bitrate"
+            android:title="Bitrate audio (kbps)"
+            android:defaultValue="128"
+            android:inputType="number"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            android:key="audio_samplerate"
+            android:title="Czestotliwosc probkowania"
+            android:defaultValue="48000"
+            android:entries="@array/samplerate_values"
+            android:entryValues="@array/samplerate_values" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Stabilnosc">
+        <SwitchPreferenceCompat
+            android:key="auto_reconnect"
+            android:title="Automatyczne wznawianie"
+            android:summary="Ponawia polaczenie po zerwaniu sieci"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+</PreferenceScreen>

@@ -1,0 +1,54 @@
+<resources>
+    <string-array name="latency_labels">
+        <item>120 ms - LAN</item>
+        <item>200 ms - stabilne Wi-Fi</item>
+        <item>400 ms - dobre Wi-Fi</item>
+        <item>800 ms - dobre LTE</item>
+        <item>1000 ms - LTE/5G (zalecane)</item>
+        <item>1500 ms - slabe LTE</item>
+        <item>2000 ms - bardzo slaby zasieg</item>
+        <item>3000 ms - maksimum</item>
+    </string-array>
+    <string-array name="latency_values">
+        <item>120</item><item>200</item><item>400</item><item>800</item>
+        <item>1000</item><item>1500</item><item>2000</item><item>3000</item>
+    </string-array>
+
+    <string-array name="pbkeylen_labels">
+        <item>AES-128</item><item>AES-192</item><item>AES-256</item>
+    </string-array>
+    <string-array name="pbkeylen_values">
+        <item>128</item><item>192</item><item>256</item>
+    </string-array>
+
+    <string-array name="source_labels">
+        <item>Kamera USB (grabber HDMI)</item>
+        <item>Kamera wbudowana - tylna</item>
+    </string-array>
+    <string-array name="source_values">
+        <item>UVC</item><item>BACK</item>
+    </string-array>
+
+    <string-array name="resolution_labels">
+        <item>1920x1080 (Full HD)</item>
+        <item>1280x720 (HD)</item>
+        <item>854x480</item>
+        <item>640x360</item>
+    </string-array>
+    <string-array name="resolution_values">
+        <item>1920x1080</item><item>1280x720</item><item>854x480</item><item>640x360</item>
+    </string-array>
+
+    <string-array name="fps_values">
+        <item>30</item><item>25</item><item>24</item><item>15</item>
+    </string-array>
+    <string-array name="codec_values">
+        <item>H264</item><item>H265</item>
+    </string-array>
+    <string-array name="keyframe_values">
+        <item>1</item><item>2</item>
+    </string-array>
+    <string-array name="samplerate_values">
+        <item>48000</item><item>44100</item>
+    </string-array>
+</resources>

@@ -1,0 +1,32 @@
+# Konfiguracja MediaMTX dla 10 punktow kamerowych
+# Uruchomienie na VPS:  ./mediamtx mediamtx.yml
+
+logLevel: info
+
+# --- Wylaczamy nieuzywane protokoly, zeby nie wystawiac ich na swiat ---
+rtmp: no
+hls: no
+webrtc: no
+rtsp: no
+
+# --- SRT ---
+srt: yes
+srtAddress: :8890
+
+pathDefaults:
+  # Haslo, ktore telefony musza podac. Musi byc 10-79 znakow.
+  # ZMIEN NA WLASNE przed uruchomieniem.
+  srtReadPassphrase: ZmienToHaslo123
+  srtPublishPassphrase: ZmienToHaslo123
+
+paths:
+  kam01:
+  kam02:
+  kam03:
+  kam04:
+  kam05:
+  kam06:
+  kam07:
+  kam08:
+  kam09:
+  kam10:

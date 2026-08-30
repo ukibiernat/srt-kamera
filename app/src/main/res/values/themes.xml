@@ -1,0 +1,4 @@
+<resources>
+    <style name="Theme.SrtKamera" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
+    <style name="Theme.SrtKamera.Settings" parent="Theme.MaterialComponents.DayNight.DarkActionBar" />
+</resources>
