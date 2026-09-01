@@ -10,7 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.view.SurfaceHolder
-import android.view.View
+import android.view.SurfaceView
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
@@ -18,11 +18,10 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.pedro.library.view.OpenGlView
 
 class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
-    private lateinit var openGlView: OpenGlView
+    private lateinit var surfaceView: SurfaceView
     private lateinit var txtStatus: TextView
     private lateinit var txtName: TextView
     private lateinit var txtStats: TextView
@@ -31,13 +30,14 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private var service: StreamService? = null
     private var bound = false
+    private var surfaceReady = false
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as StreamService.LocalBinder).getService()
             bound = true
             service?.listener = { status, bitrate, dropped -> render(status, bitrate, dropped) }
-            if (openGlView.holder.surface?.isValid == true) service?.startPreview(openGlView)
+            tryStartPreview()
             refreshLabels()
         }
 
@@ -50,9 +50,7 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        if (result.values.any { !it }) {
-            toast("Bez uprawnien aplikacja nie zadziala")
-        }
+        if (result.values.any { !it }) toast("Bez uprawnien aplikacja nie zadziala")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,14 +58,14 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_main)
 
-        openGlView = findViewById(R.id.surfaceView)
+        surfaceView = findViewById(R.id.surfaceView)
         txtStatus = findViewById(R.id.txtStatus)
         txtName = findViewById(R.id.txtName)
         txtStats = findViewById(R.id.txtStats)
         btnStream = findViewById(R.id.btnStream)
         btnSettings = findViewById(R.id.btnSettings)
 
-        openGlView.holder.addCallback(this)
+        surfaceView.holder.addCallback(this)
 
         btnStream.setOnClickListener { toggleStream() }
         btnSettings.setOnClickListener {
@@ -101,6 +99,8 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun onResume() {
         super.onResume()
+        // po powrocie z ustawien strumien jest przebudowany - podglad trzeba wznowic
+        tryStartPreview()
         refreshLabels()
     }
 
@@ -113,6 +113,14 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
     }
 
+    /** Podglad ruszy dopiero gdy i serwis, i powierzchnia rysowania sa gotowe */
+    private fun tryStartPreview() {
+        val svc = service ?: return
+        if (!surfaceReady) return
+        val error = svc.prepareAndPreview(surfaceView)
+        if (error != null) toast(error)
+    }
+
     private fun toggleStream() {
         val svc = service ?: return
         if (svc.isStreaming()) {
@@ -120,11 +128,7 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
             btnStream.text = getString(R.string.start)
         } else {
             val error = svc.startStream()
-            if (error != null) {
-                toast(error)
-            } else {
-                btnStream.text = getString(R.string.stop)
-            }
+            if (error != null) toast(error) else btnStream.text = getString(R.string.stop)
         }
     }
 
@@ -154,14 +158,16 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
-    // --- podglad ---
-    override fun surfaceCreated(holder: SurfaceHolder) {
-        service?.startPreview(openGlView)
+    // --- powierzchnia podgladu ---
+    override fun surfaceCreated(holder: SurfaceHolder) {}
+
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+        surfaceReady = true
+        tryStartPreview()
     }
 
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        surfaceReady = false
         if (service?.isStreaming() != true) service?.stopPreview()
     }
 }
