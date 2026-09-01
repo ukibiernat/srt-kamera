@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,9 +30,9 @@ jobs:
       - name: Buduj APK
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      - name: Wrzuc gotowy plik APK
-        uses: actions/upload-artifact@v4
+      - name: Opublikuj APK
+        uses: softprops/action-gh-release@v2
         with:
-          name: srt-kamera-apk
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+          tag_name: najnowsza
+          name: SRT Kamera - najnowsza wersja
+          files: app/build/outputs/apk/release/*.apk
