@@ -29,6 +29,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var txtStats: TextView
     private lateinit var btnStream: Button
     private lateinit var btnSettings: Button
+    private lateinit var btnPreview: Button
+    private lateinit var txtPreviewOff: TextView
+
+    /** Podglad kosztuje baterie i cieplo - operator moze go wylaczyc po wykadrowaniu */
+    private var previewEnabled = true
 
     private var service: StreamService? = null
     private var bound = false
@@ -67,8 +72,11 @@ class MainActivity : AppCompatActivity() {
         txtStats = findViewById(R.id.txtStats)
         btnStream = findViewById(R.id.btnStream)
         btnSettings = findViewById(R.id.btnSettings)
+        btnPreview = findViewById(R.id.btnPreview)
+        txtPreviewOff = findViewById(R.id.txtPreviewOff)
 
         btnStream.setOnClickListener { toggleStream() }
+        btnPreview.setOnClickListener { togglePreview() }
         btnSettings.setOnClickListener {
             if (service?.isStreaming() == true) {
                 toast("Zatrzymaj stream przed zmiana ustawien")
@@ -101,8 +109,30 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // po powrocie z ustawien strumien jest przebudowany - podglad trzeba wznowic
-        startPreview()
+        if (previewEnabled) startPreview()
         refreshLabels()
+    }
+
+    /**
+     * Wlacza i wylacza podglad. Wylaczony podglad oszczedza baterie i obniza
+     * temperature - nadawanie idzie dalej bez zmian, mozna tez zgasic ekran.
+     */
+    private fun togglePreview() {
+        previewEnabled = !previewEnabled
+        if (previewEnabled) {
+            txtPreviewOff.visibility = android.view.View.GONE
+            surfaceView.visibility = android.view.View.VISIBLE
+            btnPreview.text = getString(R.string.preview_off)
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            surfaceView.post { startPreview() }
+        } else {
+            service?.stopPreview()
+            surfaceView.visibility = android.view.View.GONE
+            txtPreviewOff.visibility = android.view.View.VISIBLE
+            btnPreview.text = getString(R.string.preview_on)
+            // ekran moze sie wygasic - mniej ciepla i mniej zuzytej baterii
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
 
     override fun onStop() {
@@ -120,6 +150,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun startPreview() {
         val svc = service ?: return
+        if (!previewEnabled) return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED
         ) return

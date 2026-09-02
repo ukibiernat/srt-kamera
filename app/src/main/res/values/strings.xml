@@ -3,4 +3,7 @@
     <string name="settings">Ustawienia</string>
     <string name="start">START</string>
     <string name="stop">STOP</string>
+    <string name="preview_off">Wyłącz podgląd</string>
+    <string name="preview_on">Włącz podgląd</string>
+    <string name="preview_off_info">Podgląd wyłączony\nEkran można zgasić — nadawanie trwa</string>
 </resources>

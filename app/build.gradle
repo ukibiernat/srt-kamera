@@ -15,11 +15,21 @@ android {
         versionName "1.0"
     }
 
+    signingConfigs {
+        release {
+            // Staly klucz podpisujacy - dzieki niemu kolejne wersje instaluja sie
+            // na wierzchu poprzedniej, bez odinstalowywania i utraty ustawien.
+            storeFile file('srtkamera.jks')
+            storePassword 'srtkamera'
+            keyAlias 'srtkamera'
+            keyPassword 'srtkamera'
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
-            // Podpisane kluczem debug, zeby APK dalo sie zainstalowac bez konfiguracji
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {

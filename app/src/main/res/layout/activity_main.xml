@@ -9,6 +9,17 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <TextView
+        android:id="@+id/txtPreviewOff"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="@string/preview_off_info"
+        android:textSize="18sp"
+        android:textColor="#7F8C8D"
+        android:gravity="center"
+        android:visibility="gone" />
+
     <!-- Pasek gorny: nazwa punktu i status -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -56,6 +67,13 @@
             android:text=""
             android:textSize="14sp"
             android:textColor="#ECF0F1" />
+
+        <Button
+            android:id="@+id/btnPreview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="@string/preview_off" />
 
         <Button
             android:id="@+id/btnSettings"
