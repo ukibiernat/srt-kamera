@@ -64,4 +64,14 @@ class Settings(context: Context) {
     }
 
     fun isConfigured(): Boolean = host.isNotBlank() && streamId.isNotBlank()
+
+    /**
+     * Podpis ustawien wplywajacych na budowe strumienia. Gdy sie zmieni,
+     * strumien trzeba zlozyc od nowa. Bufor, adres czy streamid tu nie wchodza,
+     * bo je czytamy dopiero przy starcie nadawania.
+     */
+    fun buildSignature(): String = listOf(
+        videoSource, width, height, fps, bitrateKbps, codec,
+        keyframeInterval, audioEnabled, audioBitrateKbps, audioSampleRate
+    ).joinToString("|")
 }

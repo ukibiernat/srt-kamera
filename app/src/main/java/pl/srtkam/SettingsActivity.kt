@@ -20,12 +20,6 @@ class SettingsActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onDestroy() {
-        // po zmianie ustawien przebuduj strumien
-        StreamService.instance?.rebuild()
-        super.onDestroy()
-    }
-
     class SettingsFragment : PreferenceFragmentCompat() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.preferences, rootKey)

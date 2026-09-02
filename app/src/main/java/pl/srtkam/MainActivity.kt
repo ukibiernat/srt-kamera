@@ -108,7 +108,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // po powrocie z ustawien strumien jest przebudowany - podglad trzeba wznowic
+        // najpierw przebuduj strumien jesli ustawienia sie zmienily, dopiero potem podglad
+        service?.rebuildIfNeeded()
         if (previewEnabled) startPreview()
         refreshLabels()
     }

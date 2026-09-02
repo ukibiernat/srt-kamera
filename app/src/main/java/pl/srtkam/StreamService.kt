@@ -57,6 +57,9 @@ class StreamService : Service(), ConnectChecker {
     private var bitrateAdapter: BitrateAdapter? = null
     private var prepared = false
 
+    /** Ustawienia, na ktorych zbudowano obecny strumien */
+    private var builtSignature = ""
+
     var status: String = "Zatrzymany"
         private set
     var currentBitrateKbps: Long = 0
@@ -95,6 +98,7 @@ class StreamService : Service(), ConnectChecker {
             setVideoCodec(if (settings.codec == "H265") VideoCodec.H265 else VideoCodec.H264)
             getStreamClient().setReTries(10)
         }
+        builtSignature = settings.buildSignature()
         prepared = false
     }
 
@@ -198,7 +202,19 @@ class StreamService : Service(), ConnectChecker {
 
     fun isStreaming(): Boolean = genericStream?.isStreaming == true
 
-    /** Po zmianie ustawien - przebudowa strumienia od zera */
+    /**
+     * Przebudowuje strumien tylko wtedy, gdy ustawienia faktycznie sie zmienily.
+     * Wolane z ekranu glownego PRZED startem podgladu - kolejnosc ma znaczenie,
+     * bo Android wznawia ekran glowny zanim zamknie ekran ustawien.
+     */
+    fun rebuildIfNeeded(): Boolean {
+        val current = Settings(this).buildSignature()
+        if (current == builtSignature) return false
+        rebuild()
+        return true
+    }
+
+    /** Przebudowa strumienia od zera */
     fun rebuild() {
         stopStream()
         stopPreview()
