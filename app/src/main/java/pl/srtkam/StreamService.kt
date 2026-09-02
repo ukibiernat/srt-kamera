@@ -135,13 +135,14 @@ class StreamService : Service(), ConnectChecker {
      */
     fun prepareAndPreview(view: SurfaceView): String? {
         val stream = genericStream ?: return "Brak strumienia"
-        if (stream.isOnPreview) return null
 
         val error = prepare()
         if (error != null) return error
+        if (stream.isOnPreview) return null
 
         return try {
-            stream.startPreview(view)
+            // autoHandle = biblioteka sama pilnuje cyklu zycia powierzchni rysowania
+            stream.startPreview(view, true)
             null
         } catch (e: Exception) {
             Log.e(TAG, "preview error", e)
@@ -150,7 +151,7 @@ class StreamService : Service(), ConnectChecker {
     }
 
     fun stopPreview() {
-        genericStream?.let { if (it.isOnPreview) it.stopPreview() }
+        genericStream?.let { if (it.isOnPreview) it.stopPreview(true) }
     }
 
     fun startStream(): String? {

@@ -9,7 +9,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.WindowManager
 import android.widget.Button
@@ -18,8 +17,11 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
-class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
+class MainActivity : AppCompatActivity() {
 
     private lateinit var surfaceView: SurfaceView
     private lateinit var txtStatus: TextView
@@ -30,14 +32,13 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private var service: StreamService? = null
     private var bound = false
-    private var surfaceReady = false
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as StreamService.LocalBinder).getService()
             bound = true
             service?.listener = { status, bitrate, dropped -> render(status, bitrate, dropped) }
-            tryStartPreview()
+            startPreview()
             refreshLabels()
         }
 
@@ -51,11 +52,13 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
         if (result.values.any { !it }) toast("Bez uprawnien aplikacja nie zadziala")
+        else startPreview()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        hideSystemBars()
         setContentView(R.layout.activity_main)
 
         surfaceView = findViewById(R.id.surfaceView)
@@ -64,8 +67,6 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         txtStats = findViewById(R.id.txtStats)
         btnStream = findViewById(R.id.btnStream)
         btnSettings = findViewById(R.id.btnSettings)
-
-        surfaceView.holder.addCallback(this)
 
         btnStream.setOnClickListener { toggleStream() }
         btnSettings.setOnClickListener {
@@ -100,7 +101,7 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
     override fun onResume() {
         super.onResume()
         // po powrocie z ustawien strumien jest przebudowany - podglad trzeba wznowic
-        tryStartPreview()
+        startPreview()
         refreshLabels()
     }
 
@@ -113,10 +114,15 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
     }
 
-    /** Podglad ruszy dopiero gdy i serwis, i powierzchnia rysowania sa gotowe */
-    private fun tryStartPreview() {
+    /**
+     * Podglad oddany bibliotece - sama pilnuje tworzenia i niszczenia powierzchni
+     * rysowania. Wczesniej robilem to recznie i obraz zamarzal po chwili.
+     */
+    private fun startPreview() {
         val svc = service ?: return
-        if (!surfaceReady) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED
+        ) return
         val error = svc.prepareAndPreview(surfaceView)
         if (error != null) toast(error)
     }
@@ -158,16 +164,18 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
-    // --- powierzchnia podgladu ---
-    override fun surfaceCreated(holder: SurfaceHolder) {}
-
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        surfaceReady = true
-        tryStartPreview()
+    /** Chowa pasek stanu i pasek nawigacji. Zjezdzaja po przeciagnieciu od krawedzi. */
+    private fun hideSystemBars() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
     }
 
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
-        surfaceReady = false
-        if (service?.isStreaming() != true) service?.stopPreview()
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemBars()
     }
 }
