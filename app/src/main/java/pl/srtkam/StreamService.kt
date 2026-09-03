@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Binder
 import android.os.Build
 import android.os.Handler
@@ -20,9 +21,11 @@ import com.pedro.common.ConnectChecker
 import com.pedro.common.VideoCodec
 import com.pedro.encoder.input.sources.audio.MicrophoneSource
 import com.pedro.encoder.input.sources.audio.NoAudioSource
+import com.pedro.encoder.input.gl.render.filters.`object`.TextObjectFilterRender
 import com.pedro.encoder.input.sources.video.Camera2Source
 import com.pedro.extrasources.CameraUvcSource
 import com.pedro.library.generic.GenericStream
+import com.pedro.encoder.utils.gl.TranslateTo
 import com.pedro.library.util.BitrateAdapter
 
 /**
@@ -70,11 +73,14 @@ class StreamService : Service(), ConnectChecker {
     /** Ile paczek czeka w kolejce na wyslanie */
     var queueItems: Int = 0; private set
 
-    private var telemetry: Telemetry? = null
 
     private var streamStartedAt = 0L
     val uptimeSeconds: Long
         get() = if (streamStartedAt == 0L) 0 else (SystemClock.elapsedRealtime() - streamStartedAt) / 1000
+
+    /** Numer punktu wpalony w obraz - realizator widzi go w OBS, nie tylko na telefonie */
+    var numberOverlayOn = false
+        private set
 
     private var reconnecting = false
     private var reconnectDelayMs = 1000L
@@ -111,6 +117,8 @@ class StreamService : Service(), ConnectChecker {
         genericStream = GenericStream(applicationContext, this, videoSource, audioSource).apply {
             setVideoCodec(if (settings.codec == "H265") VideoCodec.H265 else VideoCodec.H264)
             getStreamClient().setReTries(20)
+            // bez tego serwer czekalby na sciezke audio, ktora nigdy nie nadejdzie
+            try { getStreamClient().setOnlyVideo(!settings.audioEnabled) } catch (_: Exception) {}
         }
         builtSignature = settings.buildSignature()
         prepared = false
@@ -198,7 +206,6 @@ class StreamService : Service(), ConnectChecker {
             stream.startStream(settings.buildUrl())
             streamStartedAt = SystemClock.elapsedRealtime()
             updateStatus("Laczenie...")
-            telemetry = Telemetry(applicationContext, this).also { it.start() }
             null
         } catch (e: Exception) {
             Log.e(TAG, "start error", e)
@@ -208,8 +215,6 @@ class StreamService : Service(), ConnectChecker {
     }
 
     fun stopStream() {
-        telemetry?.stop()
-        telemetry = null
         reconnecting = false
         streamStartedAt = 0L
         bitrateKbps = 0
@@ -223,6 +228,35 @@ class StreamService : Service(), ConnectChecker {
     }
 
     fun isStreaming(): Boolean = genericStream?.isStreaming == true
+
+    /**
+     * Wpala nazwe punktu w lewy gorny rog obrazu, polprzezroczyscie.
+     * Trafia do strumienia, wiec realizator widzi to w OBS.
+     * Zwraca false, gdy silnik obrazu jeszcze nie dziala.
+     */
+    fun setNumberOverlay(on: Boolean): Boolean {
+        val stream = genericStream ?: return false
+        if (!stream.isOnPreview && !stream.isStreaming) return false
+        return try {
+            val gl = stream.getGlInterface()
+            if (on) {
+                val filter = TextObjectFilterRender()
+                gl.setFilter(filter)
+                filter.setText(settings.cameraName, 48f, Color.WHITE)
+                val size = gl.encoderSize
+                filter.setDefaultScale(size.x, size.y)
+                filter.setPosition(TranslateTo.TOP_LEFT)
+                filter.setAlpha(0.5f)
+            } else {
+                gl.clearFilters()
+            }
+            numberOverlayOn = on
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "overlay error", e)
+            false
+        }
+    }
 
     /** Pelny restart silnika - ratunek gdy cos sie zabuksuje */
     fun restartEngine() {

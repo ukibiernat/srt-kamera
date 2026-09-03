@@ -8,11 +8,15 @@
         <item>3000 ms — słaby zasięg</item>
         <item>5000 ms — bardzo słaby zasięg</item>
         <item>8000 ms — zasięg rwie się co chwilę</item>
-        <item>10000 ms — ostateczność</item>
+        <item>10000 ms — bardzo zły zasięg</item>
+        <item>15 s — zasięg znika na kilkanaście sekund</item>
+        <item>20 s — teren bez pokrycia</item>
+        <item>25 s — maksimum</item>
     </string-array>
     <string-array name="latency_values">
         <item>200</item><item>400</item><item>800</item><item>1000</item>
         <item>2000</item><item>3000</item><item>5000</item><item>8000</item><item>10000</item>
+        <item>15000</item><item>20000</item><item>25000</item>
     </string-array>
 
     <string-array name="cache_labels">
@@ -61,5 +65,12 @@
     </string-array>
     <string-array name="samplerate_values">
         <item>48000</item><item>44100</item>
+    </string-array>
+    <string-array name="sidmode_labels">
+        <item>MediaMTX — publish:kam01</item>
+        <item>Zwykły — kam01</item>
+    </string-array>
+    <string-array name="sidmode_values">
+        <item>mediamtx</item><item>plain</item>
     </string-array>
 </resources>

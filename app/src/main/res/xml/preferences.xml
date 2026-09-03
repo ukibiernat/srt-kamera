@@ -43,9 +43,16 @@
             android:inputType="number"
             app:useSimpleSummaryProvider="true" />
         <ListPreference
+            android:key="srt_streamid_mode"
+            android:title="Format identyfikatora"
+            android:summary="MediaMTX wymaga przedrostka publish:. Zwykły jest do testów z OBS w trybie nasłuchu."
+            android:defaultValue="mediamtx"
+            android:entries="@array/sidmode_labels"
+            android:entryValues="@array/sidmode_values" />
+        <ListPreference
             android:key="srt_latency"
             android:title="Bufor"
-            android:summary="Im słabszy zasięg, tym większy. Zwiększa opóźnienie obrazu."
+            android:summary="Im słabszy zasięg, tym większy. UWAGA: bufor to opóźnienie obrazu na wizji — 25 s bufora to 25 s poślizgu."
             android:defaultValue="2000"
             android:entries="@array/latency_labels"
             android:entryValues="@array/latency_values" />
@@ -126,7 +133,7 @@
         <SwitchPreferenceCompat
             android:key="audio_enabled"
             android:title="Wysyłaj dźwięk"
-            android:summary="Z mikrofonu telefonu"
+            android:summary="Wyłącz, jeśli realizator bierze dźwięk z innego źródła. Strumień pójdzie wtedy jako samo wideo."
             android:defaultValue="true" />
         <EditTextPreference
             android:key="audio_bitrate"
@@ -140,25 +147,6 @@
             android:defaultValue="48000"
             android:entries="@array/samplerate_values"
             android:entryValues="@array/samplerate_values" />
-    </PreferenceCategory>
-
-    <PreferenceCategory android:title="Telemetria">
-        <SwitchPreferenceCompat
-            android:key="telemetry_enabled"
-            android:title="Wysyłaj stan punktu"
-            android:summary="Bateria, temperatura, zasięg i jakość łącza na stronę realizatora. Zużywa ok. 0,5 kbps."
-            android:defaultValue="true" />
-        <EditTextPreference
-            android:key="telemetry_port"
-            android:title="Port telemetrii"
-            android:defaultValue="8080"
-            android:inputType="number"
-            app:useSimpleSummaryProvider="true" />
-        <EditTextPreference
-            android:key="telemetry_host"
-            android:title="Inny adres telemetrii"
-            android:summary="Puste = ten sam serwer co SRT"
-            android:defaultValue="" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Praca bez obsługi">

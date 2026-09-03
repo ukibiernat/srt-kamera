@@ -109,6 +109,14 @@
                 android:text="@string/preview_off" />
 
             <Button
+                android:id="@+id/btnNumber"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:text="@string/number_overlay" />
+
+            <Button
                 android:id="@+id/btnCamera"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="wrap_content"

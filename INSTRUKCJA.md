@@ -105,7 +105,15 @@ Dla kazdej kamery osobne zrodlo, zmieniajac `kam01` na `kam02` itd.
 
 ---
 
-## 5. Telemetria — strona podglądu dla realizatora
+## 5. Telemetria — WYŁĄCZONA w tej wersji
+
+Wysyłanie stanu punktów zostało usunięte z aplikacji na życzenie. Pliki serwera
+zostają w folderze `telemetria` na wypadek, gdybyś chciał do tego wrócić —
+ale aplikacja niczego już nie wysyła i nie zużywa na to ani transferu, ani baterii.
+
+Poniższy opis dotyczy wersji z telemetrią i jest zachowany na przyszłość.
+
+### (nieaktywne) Strona podglądu dla realizatora
 
 Telefony co 5 sekund wysyłają pakiecik ze swoim stanem (ok. 0,5 kbps, czyli nic
 przy strumieniu wideo). Na serwerze stoi prosta strona, na której widać wszystkie

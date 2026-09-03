@@ -137,7 +137,7 @@ function fmtUptime(s){
 function analyse(c){
   const bad=[], warn=[];
   if(c.age > T.staleSec) bad.push("BRAK DANYCH " + Math.round(c.age) + "s");
-  if(!c.streaming && c.age <= T.staleSec) bad.push("NIE NADAJE");
+  if(!c.streaming && c.age <= T.staleSec) warn.push("NIE NADAJE");
 
   if(c.charging && c.batteryBefore != null && c.battery < c.batteryBefore)
     bad.push("ROZŁADOWUJE SIĘ MIMO ŁADOWANIA");
@@ -147,8 +147,10 @@ function analyse(c){
   if(c.temp > T.tempHigh) bad.push("TEMPERATURA " + Math.round(c.temp) + "°C");
   else if(c.temp > T.tempHigh - 5) warn.push("ciepło " + Math.round(c.temp) + "°C");
 
-  if(c.rsrp && c.rsrp < T.rsrpBad) bad.push("ZASIĘG " + c.rsrp + " dBm");
-  else if(c.rsrp && c.rsrp < T.rsrpWarn) warn.push("słaby zasięg");
+  if(c.cellular && c.rsrp){
+    if(c.rsrp < T.rsrpBad) bad.push("ZASIĘG " + c.rsrp + " dBm");
+    else if(c.rsrp < T.rsrpWarn) warn.push("słaby zasięg");
+  }
 
   if(c.congested) bad.push("ŁĄCZE ZAPCHANE");
   if(c.reconnectsBefore != null && c.reconnects > c.reconnectsBefore)
@@ -170,22 +172,29 @@ function card(c){
   const tempCls = c.temp > T.tempHigh ? "v-bad" : (c.temp > T.tempHigh-5 ? "v-warn" : "");
   const rsrpCls = c.rsrp < T.rsrpBad ? "v-bad" : (c.rsrp < T.rsrpWarn ? "v-warn" : "");
 
-  const bars = c.bars >= 0 ? "▮".repeat(c.bars) + "▯".repeat(Math.max(0,4-c.bars)) : "—";
+  const bars = (c.cellular && c.bars >= 0)
+      ? "▮".repeat(c.bars) + "▯".repeat(Math.max(0,4-c.bars)) : "";
+  const zasieg = c.cellular
+      ? ((c.rsrp ? c.rsrp+" dBm " : "") + bars || "—")
+      : "— (Wi-Fi)";
+  const est = (!c.upEstimate || c.upEstimate > 200000)
+      ? "—"
+      : (c.upEstimate >= 1000 ? (c.upEstimate/1000).toFixed(1)+" Mbps" : c.upEstimate+" kbps");
 
   return `<div class="card ${level}">
     <div class="head">
       <div class="name">${c.name || c.id}</div>
-      <div class="state ${stale ? "bad" : (c.streaming ? "ok":"")}">${stale ? "OFFLINE" : c.status}</div>
+      <div class="state ${stale ? "bad" : (c.streaming ? "ok":"")}">${stale ? "OFFLINE" : (c.streaming ? c.status : "czuwa")}</div>
     </div>
     <div class="rows">
       ${row("Bitrate", c.streaming ? c.bitrate+" kbps" : "—")}
       ${row("Czas nadawania", fmtUptime(c.uptime))}
       ${row("Bateria", (c.battery>=0? c.battery+"%":"—") + (c.charging? " ⚡":""), battCls)}
       ${row("Temperatura", c.temp ? Math.round(c.temp)+"°C" : "—", tempCls)}
-      ${row("Zasięg", (c.rsrp? c.rsrp+" dBm":"—") + " " + bars, rsrpCls)}
+      ${row("Zasięg", zasieg, c.cellular ? rsrpCls : "")}
       ${row("Sieć", c.net || "—")}
       ${row("Szczyt sesji", c.peak ? c.peak+" kbps" : "—")}
-      ${row("Szacunek łącza", c.upEstimate ? c.upEstimate+" kbps" : "—")}
+      ${row("Szacunek łącza", est)}
       ${row("Kolejka", c.queue ?? 0)}
       ${row("Zgubione klatki", c.dropped ?? 0)}
       ${row("Wznowienia", c.reconnects ?? 0)}

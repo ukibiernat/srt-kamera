@@ -41,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnPreview: Button
     private lateinit var btnLock: Button
     private lateinit var btnCamera: Button
+    private lateinit var btnNumber: Button
     private lateinit var lockOverlay: LinearLayout
     private lateinit var cameraPanel: LinearLayout
     private var cameraControls: CameraControls? = null
@@ -102,6 +103,7 @@ class MainActivity : AppCompatActivity() {
         btnPreview = findViewById(R.id.btnPreview)
         btnLock = findViewById(R.id.btnLock)
         btnCamera = findViewById(R.id.btnCamera)
+        btnNumber = findViewById(R.id.btnNumber)
         lockOverlay = findViewById(R.id.lockOverlay)
         cameraPanel = findViewById(R.id.cameraPanel)
         cameraControls = CameraControls(this, cameraPanel).also { it.build() }
@@ -111,6 +113,8 @@ class MainActivity : AppCompatActivity() {
         btnPreview.setOnClickListener { togglePreview() }
         btnLock.setOnClickListener { setLocked(true) }
         btnCamera.setOnClickListener { toggleCameraPanel() }
+        btnNumber.setOnClickListener { flashNumber() }
+        btnNumber.setOnLongClickListener { toggleNumberPermanent(); true }
         setupTapToFocus()
         lockOverlay.setOnLongClickListener { setLocked(false); true }
 
@@ -176,6 +180,40 @@ class MainActivity : AppCompatActivity() {
             if (error != null) toast(error)
             else if (s.previewOffOnStart && previewEnabled) togglePreview()
         }, 1500)
+    }
+
+    /**
+     * Krotkie dotkniecie: numer punktu pojawia sie na obrazie na 10 sekund
+     * i sam znika. Do identyfikacji kamery przez realizatora.
+     */
+    private fun flashNumber() {
+        val svc = service ?: return
+        if (svc.numberOverlayOn) { svc.setNumberOverlay(false); refresh(); return }
+        if (!svc.setNumberOverlay(true)) {
+            toast("Najpierw wlacz podglad albo nadawanie")
+            return
+        }
+        refresh()
+        ui.postDelayed({
+            if (service?.numberOverlayOn == true) {
+                service?.setNumberOverlay(false)
+                refresh()
+            }
+        }, 10000)
+    }
+
+    /** Przytrzymanie: numer zostaje na obrazie na stale */
+    private fun toggleNumberPermanent() {
+        val svc = service ?: return
+        val target = !svc.numberOverlayOn
+        if (!svc.setNumberOverlay(target)) {
+            toast("Najpierw wlacz podglad albo nadawanie")
+            return
+        }
+        ui.removeCallbacksAndMessages(null)
+        ui.post(ticker)
+        toast(if (target) "Numer na obrazie wlaczony na stale" else "Numer wylaczony")
+        refresh()
     }
 
     /** Panel dziala tylko dla kamery wbudowanej - przy grabberze nie ma czego regulowac */
@@ -277,6 +315,9 @@ class MainActivity : AppCompatActivity() {
         val svc = service
         txtName.text = s.cameraName
         btnStream.text = if (svc?.isStreaming() == true) getString(R.string.stop) else getString(R.string.start)
+        btnNumber.setTextColor(
+            if (svc?.numberOverlayOn == true) 0xFF2ECC71.toInt() else 0xFFECF0F1.toInt()
+        )
 
         val status = svc?.status ?: "Zatrzymany"
         txtStatus.text = status
@@ -297,6 +338,7 @@ class MainActivity : AppCompatActivity() {
                 append("  •  bufor ${s.latency} ms")
                 append("  •  zgubione klatki: ${svc.droppedFrames}")
                 if (svc.reconnects > 0) append("  •  wznowienia: ${svc.reconnects}")
+                append("  •  port ${s.port}")
                 append("  •  ${battery()}")
             }
         } else {
@@ -305,6 +347,7 @@ class MainActivity : AppCompatActivity() {
                 append("  •  ${s.bitrateKbps} kbps ${s.codec}")
                 append("  •  ${if (s.videoSource == "UVC") "kamera USB" else "kamera telefonu"}")
                 append("  •  bufor ${s.latency} ms")
+                append("  •  ${s.host.ifBlank { "brak adresu" }}:${s.port}")
                 if (s.host.isBlank()) append("  •  BRAK ADRESU SERWERA")
                 append("  •  ${battery()}")
             }
