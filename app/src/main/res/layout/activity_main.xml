@@ -20,24 +20,41 @@
         android:gravity="center"
         android:visibility="gone" />
 
-    <!-- Pasek gorny: nazwa punktu i status -->
+    <!-- Pasek gorny -->
     <LinearLayout
+        android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="#AA000000"
+        android:background="#B3000000"
         android:padding="12dp"
         android:gravity="center_vertical">
 
         <TextView
             android:id="@+id/txtName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="KAM01"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/txtUptime"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="KAM01"
-            android:textSize="26sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF" />
+            android:layout_marginStart="16dp"
+            android:text=""
+            android:textSize="16sp"
+            android:textColor="#95A5A6" />
+
+        <View
+            android:id="@+id/dot"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginEnd="8dp"
+            android:background="#BDC3C7" />
 
         <TextView
             android:id="@+id/txtStatus"
@@ -49,46 +66,104 @@
             android:textColor="#BDC3C7" />
     </LinearLayout>
 
-    <!-- Pasek dolny: statystyki i przyciski -->
+    <!-- Panel sterowania kamera wbudowana -->
     <LinearLayout
+        android:id="@+id/cameraPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/bottomBar"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+    <!-- Pasek dolny -->
+    <LinearLayout
+        android:id="@+id/bottomBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
-        android:background="#AA000000"
-        android:padding="12dp"
-        android:gravity="center_vertical">
+        android:orientation="vertical"
+        android:background="#B3000000"
+        android:padding="10dp">
 
         <TextView
             android:id="@+id/txtStats"
-            android:layout_width="0dp"
-            android:layout_weight="1"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text=""
-            android:textSize="14sp"
-            android:textColor="#ECF0F1" />
+            android:textSize="13sp"
+            android:textColor="#ECF0F1"
+            android:paddingBottom="8dp" />
 
-        <Button
-            android:id="@+id/btnPreview"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end">
+
+            <Button
+                android:id="@+id/btnPreview"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:text="@string/preview_off" />
+
+            <Button
+                android:id="@+id/btnCamera"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:text="@string/camera" />
+
+            <Button
+                android:id="@+id/btnLock"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:text="@string/lock" />
+
+            <Button
+                android:id="@+id/btnSettings"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:text="@string/settings" />
+
+            <Button
+                android:id="@+id/btnStream"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:minWidth="150dp"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:text="@string/start" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Nakladka blokady dotyku -->
+    <LinearLayout
+        android:id="@+id/lockOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="#40000000"
+        android:visibility="gone">
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:text="@string/preview_off" />
-
-        <Button
-            android:id="@+id/btnSettings"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings" />
-
-        <Button
-            android:id="@+id/btnStream"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:minWidth="140dp"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:text="@string/start" />
+            android:text="@string/locked_info"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:background="#B3000000"
+            android:padding="16dp" />
     </LinearLayout>
 </RelativeLayout>

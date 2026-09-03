@@ -1,17 +1,28 @@
 <resources>
     <string-array name="latency_labels">
-        <item>120 ms - LAN</item>
-        <item>200 ms - stabilne Wi-Fi</item>
-        <item>400 ms - dobre Wi-Fi</item>
-        <item>800 ms - dobre LTE</item>
-        <item>1000 ms - LTE/5G (zalecane)</item>
-        <item>1500 ms - slabe LTE</item>
-        <item>2000 ms - bardzo slaby zasieg</item>
-        <item>3000 ms - maksimum</item>
+        <item>200 ms — sieć lokalna</item>
+        <item>400 ms — dobre Wi-Fi</item>
+        <item>800 ms — mocne LTE</item>
+        <item>1000 ms — dobre LTE</item>
+        <item>2000 ms — przeciętne LTE (zalecane)</item>
+        <item>3000 ms — słaby zasięg</item>
+        <item>5000 ms — bardzo słaby zasięg</item>
+        <item>8000 ms — zasięg rwie się co chwilę</item>
+        <item>10000 ms — ostateczność</item>
     </string-array>
     <string-array name="latency_values">
-        <item>120</item><item>200</item><item>400</item><item>800</item>
-        <item>1000</item><item>1500</item><item>2000</item><item>3000</item>
+        <item>200</item><item>400</item><item>800</item><item>1000</item>
+        <item>2000</item><item>3000</item><item>5000</item><item>8000</item><item>10000</item>
+    </string-array>
+
+    <string-array name="cache_labels">
+        <item>Mała — najmniejsze opóźnienie</item>
+        <item>Średnia (zalecana)</item>
+        <item>Duża — przetrwa dłuższe zaniki</item>
+        <item>Bardzo duża — teren bez zasięgu</item>
+    </string-array>
+    <string-array name="cache_values">
+        <item>200</item><item>400</item><item>800</item><item>1500</item>
     </string-array>
 
     <string-array name="pbkeylen_labels">
@@ -23,7 +34,7 @@
 
     <string-array name="source_labels">
         <item>Kamera USB (grabber HDMI)</item>
-        <item>Kamera wbudowana - tylna</item>
+        <item>Kamera wbudowana — tylna</item>
     </string-array>
     <string-array name="source_values">
         <item>UVC</item><item>BACK</item>

@@ -2,20 +2,38 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <PreferenceCategory android:title="Szybka konfiguracja">
+        <Preference
+            android:key="qr_scan"
+            android:title="Zeskanuj kod QR"
+            android:summary="Wczytaj ustawienia z telefonu wzorcowego" />
+        <Preference
+            android:key="qr_show"
+            android:title="Pokaż kod QR"
+            android:summary="Udostępnij te ustawienia pozostałym telefonom" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="Punkt kamerowy">
         <EditTextPreference
-            android:key="camera_name"
-            android:title="Nazwa punktu"
-            android:summary="Widoczna na ekranie, np. KAM01"
-            android:defaultValue="KAM01"
+            android:key="point_number"
+            android:title="Numer punktu"
+            android:summary="1–99. Na każdym telefonie inny!"
+            android:defaultValue="1"
+            android:inputType="number"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:key="point_prefix"
+            android:title="Prefiks nazwy"
+            android:summary="Numer 3 i prefiks kam dają strumień kam03"
+            android:defaultValue="kam"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="Polaczenie SRT">
+    <PreferenceCategory android:title="Serwer SRT">
         <EditTextPreference
             android:key="srt_host"
             android:title="Adres serwera"
-            android:summary="IP lub domena VPS"
+            android:summary="IP albo domena VPS"
             android:defaultValue=""
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
@@ -24,52 +42,49 @@
             android:defaultValue="8890"
             android:inputType="number"
             app:useSimpleSummaryProvider="true" />
-        <EditTextPreference
-            android:key="srt_streamid"
-            android:title="Stream ID"
-            android:summary="Identyfikator strumienia, np. kam01"
-            android:defaultValue="kam01"
-            app:useSimpleSummaryProvider="true" />
         <ListPreference
             android:key="srt_latency"
-            android:title="Bufor (latency)"
-            android:summary="LTE/5G: 1000 ms. Stabilne Wi-Fi: 200-400 ms"
-            android:defaultValue="1000"
+            android:title="Bufor"
+            android:summary="Im słabszy zasięg, tym większy. Zwiększa opóźnienie obrazu."
+            android:defaultValue="2000"
             android:entries="@array/latency_labels"
             android:entryValues="@array/latency_values" />
+        <ListPreference
+            android:key="srt_cache"
+            android:title="Odporność na zanik sieci"
+            android:summary="Ile materiału przechować, gdy sieć chwilowo zniknie"
+            android:defaultValue="400"
+            android:entries="@array/cache_labels"
+            android:entryValues="@array/cache_values" />
         <EditTextPreference
             android:key="srt_passphrase"
-            android:title="Haslo szyfrowania"
-            android:summary="10-79 znakow. Puste = bez szyfrowania"
+            android:title="Hasło szyfrowania"
+            android:summary="10–79 znaków. Puste = bez szyfrowania."
             android:defaultValue="" />
         <ListPreference
             android:key="srt_pbkeylen"
-            android:title="Sila szyfrowania"
+            android:title="Siła szyfrowania"
             android:defaultValue="128"
             android:entries="@array/pbkeylen_labels"
             android:entryValues="@array/pbkeylen_values" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="Zrodlo obrazu">
+    <PreferenceCategory android:title="Obraz">
         <ListPreference
             android:key="video_source"
-            android:title="Kamera"
-            android:summary="USB = grabber HDMI"
+            android:title="Źródło"
             android:defaultValue="UVC"
             android:entries="@array/source_labels"
             android:entryValues="@array/source_values" />
-    </PreferenceCategory>
-
-    <PreferenceCategory android:title="Wideo">
         <ListPreference
             android:key="video_resolution"
-            android:title="Rozdzielczosc"
+            android:title="Rozdzielczość"
             android:defaultValue="1920x1080"
             android:entries="@array/resolution_labels"
             android:entryValues="@array/resolution_values" />
         <ListPreference
             android:key="video_fps"
-            android:title="Klatki na sekunde"
+            android:title="Klatki na sekundę"
             android:defaultValue="30"
             android:entries="@array/fps_values"
             android:entryValues="@array/fps_values" />
@@ -83,7 +98,7 @@
         <ListPreference
             android:key="video_codec"
             android:title="Kodek"
-            android:summary="H265 = mniejsze pasmo, wieksze obciazenie telefonu"
+            android:summary="H265 zużywa mniej pasma, ale bardziej obciąża telefon"
             android:defaultValue="H264"
             android:entries="@array/codec_values"
             android:entryValues="@array/codec_values" />
@@ -96,20 +111,22 @@
         <SwitchPreferenceCompat
             android:key="video_abr"
             android:title="Adaptacyjny bitrate"
-            android:summary="Obniza jakosc zamiast gubic obraz przy slabym zasiegu"
+            android:summary="Obniża jakość zamiast gubić obraz przy słabym zasięgu"
             android:defaultValue="true" />
         <EditTextPreference
             android:key="video_bitrate_min"
             android:title="Minimalny bitrate (kbps)"
-            android:defaultValue="2000"
+            android:summary="Poniżej tej wartości aplikacja nie zejdzie"
+            android:defaultValue="1500"
             android:inputType="number"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="Audio">
+    <PreferenceCategory android:title="Dźwięk">
         <SwitchPreferenceCompat
             android:key="audio_enabled"
-            android:title="Wysylaj dzwiek"
+            android:title="Wysyłaj dźwięk"
+            android:summary="Z mikrofonu telefonu"
             android:defaultValue="true" />
         <EditTextPreference
             android:key="audio_bitrate"
@@ -119,17 +136,32 @@
             app:useSimpleSummaryProvider="true" />
         <ListPreference
             android:key="audio_samplerate"
-            android:title="Czestotliwosc probkowania"
+            android:title="Próbkowanie"
             android:defaultValue="48000"
             android:entries="@array/samplerate_values"
             android:entryValues="@array/samplerate_values" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="Stabilnosc">
+    <PreferenceCategory android:title="Praca bez obsługi">
         <SwitchPreferenceCompat
             android:key="auto_reconnect"
             android:title="Automatyczne wznawianie"
-            android:summary="Ponawia polaczenie po zerwaniu sieci"
+            android:summary="Ponawia połączenie po zerwaniu sieci"
             android:defaultValue="true" />
+        <SwitchPreferenceCompat
+            android:key="auto_start"
+            android:title="Nadawaj od razu po otwarciu"
+            android:summary="Punkt startuje sam, bez klikania"
+            android:defaultValue="false" />
+        <SwitchPreferenceCompat
+            android:key="preview_off_on_start"
+            android:title="Wyłącz podgląd po starcie"
+            android:summary="Mniej ciepła i dłużej na baterii"
+            android:defaultValue="false" />
+        <SwitchPreferenceCompat
+            android:key="auto_start_boot"
+            android:title="Wznów po restarcie telefonu"
+            android:summary="Na Androidzie 14 system może to zablokować"
+            android:defaultValue="false" />
     </PreferenceCategory>
 </PreferenceScreen>

@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import android.view.SurfaceView
 import com.pedro.common.ConnectChecker
@@ -26,11 +27,7 @@ import com.pedro.library.util.BitrateAdapter
 
 /**
  * Serwis pierwszoplanowy - trzyma strumien przy zyciu takze przy zgaszonym ekranie.
- *
- * Kolejnosc wywolan wymagana przez biblioteke:
- *   1. prepareVideo/prepareAudio  (NIE wolno gdy podglad juz dziala)
- *   2. startPreview
- *   3. startStream
+ * Cala logika nadawania siedzi tutaj, ekran glowny tylko pokazuje stan.
  */
 class StreamService : Service(), ConnectChecker {
 
@@ -38,6 +35,8 @@ class StreamService : Service(), ConnectChecker {
         private const val TAG = "StreamService"
         private const val CHANNEL_ID = "srt_stream"
         private const val NOTIFICATION_ID = 1001
+        const val EXTRA_AUTOSTART = "autostart"
+
         var instance: StreamService? = null
             private set
     }
@@ -56,19 +55,18 @@ class StreamService : Service(), ConnectChecker {
 
     private var bitrateAdapter: BitrateAdapter? = null
     private var prepared = false
-
-    /** Ustawienia, na ktorych zbudowano obecny strumien */
     private var builtSignature = ""
 
-    var status: String = "Zatrzymany"
-        private set
-    var currentBitrateKbps: Long = 0
-        private set
-    var droppedFrames: Long = 0
-        private set
+    // --- stan pokazywany w interfejsie ---
+    var status: String = "Zatrzymany"; private set
+    var bitrateKbps: Long = 0; private set
+    var droppedFrames: Long = 0; private set
+    var reconnects: Int = 0; private set
+    var lastError: String = ""; private set
 
-    /** Activity podpina sie tu, zeby odswiezac ekran */
-    var listener: ((String, Long, Long) -> Unit)? = null
+    private var streamStartedAt = 0L
+    val uptimeSeconds: Long
+        get() = if (streamStartedAt == 0L) 0 else (SystemClock.elapsedRealtime() - streamStartedAt) / 1000
 
     private var reconnecting = false
     private var reconnectDelayMs = 1000L
@@ -81,6 +79,14 @@ class StreamService : Service(), ConnectChecker {
         settings = Settings(this)
         createNotificationChannel()
         buildStream()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.getBooleanExtra(EXTRA_AUTOSTART, false) == true) {
+            // start po restarcie telefonu - dajemy chwile na podniesienie sieci
+            handler.postDelayed({ startStream() }, 15000)
+        }
+        return START_STICKY
     }
 
     // ---------------------------------------------------------------
@@ -96,26 +102,19 @@ class StreamService : Service(), ConnectChecker {
 
         genericStream = GenericStream(applicationContext, this, videoSource, audioSource).apply {
             setVideoCodec(if (settings.codec == "H265") VideoCodec.H265 else VideoCodec.H264)
-            getStreamClient().setReTries(10)
+            getStreamClient().setReTries(20)
         }
         builtSignature = settings.buildSignature()
         prepared = false
     }
 
-    /**
-     * Przygotowuje enkodery. Musi byc wywolane ZANIM ruszy podglad.
-     * Zwraca komunikat bledu albo null gdy OK.
-     */
     private fun prepare(): String? {
         val stream = genericStream ?: return "Strumien nie zainicjalizowany"
         if (prepared) return null
         return try {
             val videoOk = stream.prepareVideo(
-                settings.width,
-                settings.height,
-                settings.bitrateKbps * 1000,
-                settings.fps,
-                settings.keyframeInterval
+                settings.width, settings.height, settings.bitrateKbps * 1000,
+                settings.fps, settings.keyframeInterval
             )
             if (!videoOk) return "Enkoder wideo odrzucil ustawienia (sprobuj nizszej rozdzielczosci)"
 
@@ -133,19 +132,12 @@ class StreamService : Service(), ConnectChecker {
         }
     }
 
-    /**
-     * Przygotowuje enkodery i uruchamia podglad. Wolane przez Activity gdy
-     * powierzchnia rysowania jest gotowa.
-     */
     fun prepareAndPreview(view: SurfaceView): String? {
         val stream = genericStream ?: return "Brak strumienia"
-
         val error = prepare()
         if (error != null) return error
         if (stream.isOnPreview) return null
-
         return try {
-            // autoHandle = biblioteka sama pilnuje cyklu zycia powierzchni rysowania
             stream.startPreview(view, true)
             null
         } catch (e: Exception) {
@@ -158,30 +150,45 @@ class StreamService : Service(), ConnectChecker {
         genericStream?.let { if (it.isOnPreview) it.stopPreview(true) }
     }
 
+    fun isPreviewOn(): Boolean = genericStream?.isOnPreview == true
+
+    // ---------------------------------------------------------------
+    // Nadawanie
+    // ---------------------------------------------------------------
+
     fun startStream(): String? {
         val stream = genericStream ?: return "Brak strumienia"
         if (stream.isStreaming) return null
         if (!settings.isConfigured()) return "Uzupelnij adres serwera w ustawieniach"
-        if (!prepared) {
-            val error = prepare()
-            if (error != null) return error
-        }
+
+        val error = prepare()
+        if (error != null) return error
 
         acquireWakeLock()
         startForegroundNotification()
 
-        if (settings.adaptiveBitrate) {
-            bitrateAdapter = BitrateAdapter { bitrate ->
+        // wieksza kolejka wysylkowa = wieksza odpornosc na chwilowy zanik sieci
+        try {
+            stream.getStreamClient().resizeCache(settings.cacheSize)
+        } catch (e: Exception) {
+            Log.w(TAG, "nie udalo sie ustawic kolejki", e)
+        }
+
+        bitrateAdapter = if (settings.adaptiveBitrate) {
+            BitrateAdapter { bitrate ->
                 val floor = settings.minBitrateKbps * 1000
                 genericStream?.setVideoBitrateOnFly(if (bitrate < floor) floor else bitrate)
             }.apply { setMaxBitrate(settings.bitrateKbps * 1000) }
-        }
+        } else null
 
         reconnecting = false
         reconnectDelayMs = 1000L
+        reconnects = 0
+        lastError = ""
 
         return try {
             stream.startStream(settings.buildUrl())
+            streamStartedAt = SystemClock.elapsedRealtime()
             updateStatus("Laczenie...")
             null
         } catch (e: Exception) {
@@ -193,6 +200,8 @@ class StreamService : Service(), ConnectChecker {
 
     fun stopStream() {
         reconnecting = false
+        streamStartedAt = 0L
+        bitrateKbps = 0
         genericStream?.let { if (it.isStreaming) it.stopStream() }
         bitrateAdapter = null
         releaseWakeLock()
@@ -202,8 +211,15 @@ class StreamService : Service(), ConnectChecker {
 
     fun isStreaming(): Boolean = genericStream?.isStreaming == true
 
+    /** Pelny restart silnika - ratunek gdy cos sie zabuksuje */
+    fun restartEngine() {
+        val wasStreaming = isStreaming()
+        rebuild()
+        if (wasStreaming) handler.postDelayed({ startStream() }, 800)
+    }
+
     /**
-     * Przebudowuje strumien tylko wtedy, gdy ustawienia faktycznie sie zmienily.
+     * Przebudowuje strumien tylko gdy ustawienia faktycznie sie zmienily.
      * Wolane z ekranu glownego PRZED startem podgladu - kolejnosc ma znaczenie,
      * bo Android wznawia ekran glowny zanim zamknie ekran ustawien.
      */
@@ -214,7 +230,6 @@ class StreamService : Service(), ConnectChecker {
         return true
     }
 
-    /** Przebudowa strumienia od zera */
     fun rebuild() {
         stopStream()
         stopPreview()
@@ -228,23 +243,24 @@ class StreamService : Service(), ConnectChecker {
     // Callbacki polaczenia
     // ---------------------------------------------------------------
 
-    override fun onConnectionStarted(url: String) {
-        updateStatus("Laczenie...")
-    }
+    override fun onConnectionStarted(url: String) = updateStatus("Laczenie...")
 
     override fun onConnectionSuccess() {
         reconnecting = false
         reconnectDelayMs = 1000L
+        lastError = ""
+        if (streamStartedAt == 0L) streamStartedAt = SystemClock.elapsedRealtime()
         updateStatus("NADAJE")
     }
 
     override fun onConnectionFailed(reason: String) {
         Log.w(TAG, "connection failed: $reason")
+        lastError = reason
         if (settings.autoReconnect) {
             reconnecting = true
+            reconnects++
             val delay = reconnectDelayMs
-            updateStatus("Ponawiam za ${delay / 1000}s")
-            // narastajace opoznienie: 1s, 2s, 5s, potem co 10s
+            updateStatus("Wznawiam za ${delay / 1000}s")
             reconnectDelayMs = when (delay) {
                 1000L -> 2000L
                 2000L -> 5000L
@@ -258,38 +274,29 @@ class StreamService : Service(), ConnectChecker {
                 }
             }
         } else {
-            updateStatus("Blad: $reason")
+            updateStatus("Blad polaczenia")
             stopStream()
         }
     }
 
     override fun onNewBitrate(bitrate: Long) {
-        currentBitrateKbps = bitrate / 1000
+        bitrateKbps = bitrate / 1000
         val client = genericStream?.getStreamClient()
         val congestion = try { client?.hasCongestion() ?: false } catch (e: Exception) { false }
         droppedFrames = try { client?.getDroppedVideoFrames() ?: 0L } catch (e: Exception) { 0L }
         bitrateAdapter?.adaptBitrate(bitrate, congestion)
-        notifyListener()
     }
 
     override fun onDisconnect() {
         if (!reconnecting) updateStatus("Rozlaczony")
     }
 
-    override fun onAuthError() {
-        updateStatus("Blad autoryzacji")
-    }
-
+    override fun onAuthError() = updateStatus("Blad hasla")
     override fun onAuthSuccess() {}
 
     private fun updateStatus(s: String) {
         status = s
-        notifyListener()
         if (isStreaming() || reconnecting) updateNotification()
-    }
-
-    private fun notifyListener() {
-        handler.post { listener?.invoke(status, currentBitrateKbps, droppedFrames) }
     }
 
     // ---------------------------------------------------------------
@@ -314,21 +321,18 @@ class StreamService : Service(), ConnectChecker {
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
         } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
+            @Suppress("DEPRECATION") Notification.Builder(this)
         }
         return builder
-            .setContentTitle("${settings.cameraName} - $status")
-            .setContentText("$currentBitrateKbps kbps")
+            .setContentTitle("${settings.cameraName} — $status")
+            .setContentText("$bitrateKbps kbps")
             .setSmallIcon(android.R.drawable.presence_video_online)
             .setContentIntent(pending)
             .setOngoing(true)
             .build()
     }
 
-    private fun startForegroundNotification() {
-        startForeground(NOTIFICATION_ID, buildNotification())
-    }
+    private fun startForegroundNotification() = startForeground(NOTIFICATION_ID, buildNotification())
 
     private fun updateNotification() {
         try {
@@ -342,7 +346,7 @@ class StreamService : Service(), ConnectChecker {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SrtKamera::stream")
         }
-        if (wakeLock?.isHeld == false) wakeLock?.acquire(12 * 60 * 60 * 1000L)
+        if (wakeLock?.isHeld == false) wakeLock?.acquire(16 * 60 * 60 * 1000L)
     }
 
     private fun releaseWakeLock() {

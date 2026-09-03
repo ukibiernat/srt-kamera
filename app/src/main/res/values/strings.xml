@@ -3,7 +3,11 @@
     <string name="settings">Ustawienia</string>
     <string name="start">START</string>
     <string name="stop">STOP</string>
-    <string name="preview_off">Wyłącz podgląd</string>
-    <string name="preview_on">Włącz podgląd</string>
+    <string name="preview_off">Podgląd wył.</string>
+    <string name="preview_on">Podgląd wł.</string>
     <string name="preview_off_info">Podgląd wyłączony\nEkran można zgasić — nadawanie trwa</string>
+    <string name="lock">Blokada</string>
+    <string name="locked_info">Ekran zablokowany\nPrzytrzymaj palec, aby odblokować</string>
+    <string name="qr_title">Kod QR</string>
+    <string name="camera">Kamera</string>
 </resources>

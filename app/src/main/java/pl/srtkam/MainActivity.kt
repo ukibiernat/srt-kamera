@@ -4,14 +4,20 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.view.SurfaceView
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,24 +33,42 @@ class MainActivity : AppCompatActivity() {
     private lateinit var txtStatus: TextView
     private lateinit var txtName: TextView
     private lateinit var txtStats: TextView
+    private lateinit var txtUptime: TextView
+    private lateinit var txtPreviewOff: TextView
+    private lateinit var dot: View
     private lateinit var btnStream: Button
     private lateinit var btnSettings: Button
     private lateinit var btnPreview: Button
-    private lateinit var txtPreviewOff: TextView
-
-    /** Podglad kosztuje baterie i cieplo - operator moze go wylaczyc po wykadrowaniu */
-    private var previewEnabled = true
+    private lateinit var btnLock: Button
+    private lateinit var btnCamera: Button
+    private lateinit var lockOverlay: LinearLayout
+    private lateinit var cameraPanel: LinearLayout
+    private var cameraControls: CameraControls? = null
 
     private var service: StreamService? = null
     private var bound = false
+
+    /** Podglad kosztuje baterie i cieplo - operator moze go wylaczyc po wykadrowaniu */
+    private var previewEnabled = true
+    private var locked = false
+    private var autoStartDone = false
+
+    private val ui = Handler(Looper.getMainLooper())
+    private val ticker = object : Runnable {
+        override fun run() {
+            refresh()
+            ui.postDelayed(this, 1000)
+        }
+    }
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as StreamService.LocalBinder).getService()
             bound = true
-            service?.listener = { status, bitrate, dropped -> render(status, bitrate, dropped) }
-            startPreview()
-            refreshLabels()
+            service?.rebuildIfNeeded()
+            if (previewEnabled) startPreview()
+            refresh()
+            maybeAutoStart()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -70,16 +94,29 @@ class MainActivity : AppCompatActivity() {
         txtStatus = findViewById(R.id.txtStatus)
         txtName = findViewById(R.id.txtName)
         txtStats = findViewById(R.id.txtStats)
+        txtUptime = findViewById(R.id.txtUptime)
+        txtPreviewOff = findViewById(R.id.txtPreviewOff)
+        dot = findViewById(R.id.dot)
         btnStream = findViewById(R.id.btnStream)
         btnSettings = findViewById(R.id.btnSettings)
         btnPreview = findViewById(R.id.btnPreview)
-        txtPreviewOff = findViewById(R.id.txtPreviewOff)
+        btnLock = findViewById(R.id.btnLock)
+        btnCamera = findViewById(R.id.btnCamera)
+        lockOverlay = findViewById(R.id.lockOverlay)
+        cameraPanel = findViewById(R.id.cameraPanel)
+        cameraControls = CameraControls(this, cameraPanel).also { it.build() }
 
         btnStream.setOnClickListener { toggleStream() }
+        btnStream.setOnLongClickListener { restartEngine(); true }
         btnPreview.setOnClickListener { togglePreview() }
+        btnLock.setOnClickListener { setLocked(true) }
+        btnCamera.setOnClickListener { toggleCameraPanel() }
+        setupTapToFocus()
+        lockOverlay.setOnLongClickListener { setLocked(false); true }
+
         btnSettings.setOnClickListener {
             if (service?.isStreaming() == true) {
-                toast("Zatrzymaj stream przed zmiana ustawien")
+                toast("Zatrzymaj nadawanie przed zmiana ustawien")
             } else {
                 startActivity(Intent(this, SettingsActivity::class.java))
             }
@@ -108,47 +145,71 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // najpierw przebuduj strumien jesli ustawienia sie zmienily, dopiero potem podglad
         service?.rebuildIfNeeded()
         if (previewEnabled) startPreview()
-        refreshLabels()
+        ui.post(ticker)
+        maybeAutoStart()
     }
 
-    /**
-     * Wlacza i wylacza podglad. Wylaczony podglad oszczedza baterie i obniza
-     * temperature - nadawanie idzie dalej bez zmian, mozna tez zgasic ekran.
-     */
-    private fun togglePreview() {
-        previewEnabled = !previewEnabled
-        if (previewEnabled) {
-            txtPreviewOff.visibility = android.view.View.GONE
-            surfaceView.visibility = android.view.View.VISIBLE
-            btnPreview.text = getString(R.string.preview_off)
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            surfaceView.post { startPreview() }
-        } else {
-            service?.stopPreview()
-            surfaceView.visibility = android.view.View.GONE
-            txtPreviewOff.visibility = android.view.View.VISIBLE
-            btnPreview.text = getString(R.string.preview_on)
-            // ekran moze sie wygasic - mniej ciepla i mniej zuzytej baterii
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
+    override fun onPause() {
+        super.onPause()
+        ui.removeCallbacks(ticker)
     }
 
     override fun onStop() {
         super.onStop()
-        service?.listener = null
         if (bound) {
             unbindService(connection)
             bound = false
         }
     }
 
-    /**
-     * Podglad oddany bibliotece - sama pilnuje tworzenia i niszczenia powierzchni
-     * rysowania. Wczesniej robilem to recznie i obraz zamarzal po chwili.
-     */
+    /** Punkt bez obslugi - nadawanie rusza samo po otwarciu aplikacji */
+    private fun maybeAutoStart() {
+        if (autoStartDone) return
+        val svc = service ?: return
+        val s = Settings(this)
+        if (!s.autoStart || !s.isConfigured() || svc.isStreaming()) return
+        autoStartDone = true
+        ui.postDelayed({
+            val error = svc.startStream()
+            if (error != null) toast(error)
+            else if (s.previewOffOnStart && previewEnabled) togglePreview()
+        }, 1500)
+    }
+
+    /** Panel dziala tylko dla kamery wbudowanej - przy grabberze nie ma czego regulowac */
+    private fun toggleCameraPanel() {
+        if (Settings(this).videoSource == "UVC") {
+            toast("Ustawienia obrazu przy grabberze HDMI robi sie na kamerze, nie w telefonie")
+            return
+        }
+        if (service?.isPreviewOn() != true && service?.isStreaming() != true) {
+            toast("Najpierw wlacz podglad albo nadawanie")
+            return
+        }
+        val cc = cameraControls ?: return
+        cc.show(!cc.isVisible())
+    }
+
+    /** Dotkniecie obrazu ustawia ostrosc i pomiar swiatla w tym punkcie */
+    private fun setupTapToFocus() {
+        surfaceView.setOnTouchListener { view, event ->
+            if (event.action == android.view.MotionEvent.ACTION_UP &&
+                Settings(this).videoSource != "UVC"
+            ) {
+                val cam = service?.genericStream?.videoSource
+                        as? com.pedro.encoder.input.sources.video.Camera2Source
+                try {
+                    cam?.tapToFocus(view, event)
+                    cam?.tapToMeterExposure(view, event)
+                } catch (_: Exception) {}
+                view.performClick()
+            }
+            true
+        }
+    }
+
     private fun startPreview() {
         val svc = service ?: return
         if (!previewEnabled) return
@@ -157,57 +218,144 @@ class MainActivity : AppCompatActivity() {
         ) return
         val error = svc.prepareAndPreview(surfaceView)
         if (error != null) toast(error)
+        else ui.postDelayed({ if (cameraControls?.isVisible() == true) cameraControls?.refresh() }, 900)
+    }
+
+    /**
+     * Wlacza i wylacza podglad. Wylaczony podglad oszczedza baterie i obniza
+     * temperature - nadawanie idzie dalej, mozna tez zgasic ekran.
+     */
+    private fun togglePreview() {
+        previewEnabled = !previewEnabled
+        if (previewEnabled) {
+            txtPreviewOff.visibility = View.GONE
+            surfaceView.visibility = View.VISIBLE
+            btnPreview.text = getString(R.string.preview_off)
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            surfaceView.post { startPreview() }
+        } else {
+            service?.stopPreview()
+            surfaceView.visibility = View.GONE
+            txtPreviewOff.visibility = View.VISIBLE
+            btnPreview.text = getString(R.string.preview_on)
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    /** Blokada dotyku - zeby nikt nie ubil nadawania przypadkiem */
+    private fun setLocked(value: Boolean) {
+        locked = value
+        lockOverlay.visibility = if (locked) View.VISIBLE else View.GONE
+        if (locked) cameraControls?.show(false)
+        if (locked) toast("Ekran zablokowany. Przytrzymaj palec, aby odblokowac.")
+    }
+
+    private fun restartEngine() {
+        val svc = service ?: return
+        toast("Restartuje silnik...")
+        svc.restartEngine()
+        ui.postDelayed({ if (previewEnabled) startPreview() }, 1200)
     }
 
     private fun toggleStream() {
         val svc = service ?: return
         if (svc.isStreaming()) {
             svc.stopStream()
-            btnStream.text = getString(R.string.start)
         } else {
             val error = svc.startStream()
-            if (error != null) toast(error) else btnStream.text = getString(R.string.stop)
+            if (error != null) toast(error)
+            else if (Settings(this).previewOffOnStart && previewEnabled) togglePreview()
+        }
+        refresh()
+    }
+
+    // ---------------------------------------------------------------
+    // Odswiezanie ekranu co sekunde
+    // ---------------------------------------------------------------
+
+    private fun refresh() {
+        val s = Settings(this)
+        val svc = service
+        txtName.text = s.cameraName
+        btnStream.text = if (svc?.isStreaming() == true) getString(R.string.stop) else getString(R.string.start)
+
+        val status = svc?.status ?: "Zatrzymany"
+        txtStatus.text = status
+        val color = when {
+            status == "NADAJE" -> 0xFF2ECC71.toInt()
+            status.startsWith("Wznawiam") || status == "Laczenie..." -> 0xFFF39C12.toInt()
+            status == "Zatrzymany" -> 0xFFBDC3C7.toInt()
+            else -> 0xFFE74C3C.toInt()
+        }
+        txtStatus.setTextColor(color)
+        dot.setBackgroundColor(color)
+
+        txtUptime.text = if (svc?.isStreaming() == true) formatUptime(svc.uptimeSeconds) else ""
+
+        txtStats.text = if (svc?.isStreaming() == true) {
+            buildString {
+                append("${svc.bitrateKbps} kbps")
+                append("  •  bufor ${s.latency} ms")
+                append("  •  zgubione klatki: ${svc.droppedFrames}")
+                if (svc.reconnects > 0) append("  •  wznowienia: ${svc.reconnects}")
+                append("  •  ${battery()}")
+            }
+        } else {
+            buildString {
+                append("${s.width}x${s.height}@${s.fps}")
+                append("  •  ${s.bitrateKbps} kbps ${s.codec}")
+                append("  •  ${if (s.videoSource == "UVC") "kamera USB" else "kamera telefonu"}")
+                append("  •  bufor ${s.latency} ms")
+                if (s.host.isBlank()) append("  •  BRAK ADRESU SERWERA")
+                append("  •  ${battery()}")
+            }
         }
     }
 
-    private fun refreshLabels() {
-        val s = Settings(this)
-        txtName.text = s.cameraName
-        val src = if (s.videoSource == "UVC") "USB" else "wbudowana"
-        txtStats.text = "${s.width}x${s.height}@${s.fps} - ${s.bitrateKbps} kbps - $src - bufor ${s.latency} ms"
-        btnStream.text = if (service?.isStreaming() == true) getString(R.string.stop) else getString(R.string.start)
+    private fun formatUptime(sec: Long): String {
+        val h = sec / 3600
+        val m = (sec % 3600) / 60
+        val s = sec % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
     }
 
-    private fun render(status: String, bitrate: Long, dropped: Long) {
-        txtStatus.text = status
-        txtStatus.setTextColor(
-            when {
-                status == "NADAJE" -> 0xFF2ECC71.toInt()
-                status.startsWith("Ponawiam") || status == "Laczenie..." -> 0xFFF39C12.toInt()
-                status == "Zatrzymany" -> 0xFFBDC3C7.toInt()
-                else -> 0xFFE74C3C.toInt()
-            }
-        )
-        if (service?.isStreaming() == true) {
-            val s = Settings(this)
-            txtStats.text = "$bitrate kbps - zgubione klatki: $dropped - bufor ${s.latency} ms"
+    /** Poziom baterii i temperatura - kluczowe przy dlugim nadawaniu w terenie */
+    private fun battery(): String {
+        return try {
+            val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+            val tempTenths = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0
+            val pct = if (level >= 0) level * 100 / scale else 0
+            val temp = tempTenths / 10.0
+            "bateria $pct%  •  ${"%.0f".format(temp)}°C"
+        } catch (e: Exception) {
+            ""
         }
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
-    /** Chowa pasek stanu i pasek nawigacji. Zjezdzaja po przeciagnieciu od krawedzi. */
+    /** Chowa pasek stanu i pasek nawigacji */
     private fun hideSystemBars() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             hide(WindowInsetsCompat.Type.systemBars())
-            systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemBars()
+    }
+
+    override fun onBackPressed() {
+        if (locked) {
+            toast("Ekran zablokowany")
+            return
+        }
+        @Suppress("DEPRECATION")
+        super.onBackPressed()
     }
 }
