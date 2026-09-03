@@ -136,7 +136,8 @@ class CameraControls(
         // zakres kompensacji ekspozycji z parametrow aparatu
         try {
             val cm = activity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val ch = cm.getCameraCharacteristics(cam.getCurrentCameraId())
+            val currentId = cam.getCurrentCameraId() ?: ""
+            val ch = cm.getCameraCharacteristics(currentId)
             val r = ch.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE)
             val step = ch.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP)
             expMin = r?.lower ?: 0
@@ -204,7 +205,7 @@ class CameraControls(
 
         val back = lenses.filter { !it.front }.sortedBy { it.focal }
         val front = lenses.filter { it.front }
-        val current = try { cam.getCurrentCameraId() } catch (e: Exception) { "" }
+        val current = try { cam.getCurrentCameraId() ?: "" } catch (e: Exception) { "" }
 
         fun labelFor(l: Lens, index: Int, total: Int): String {
             val mm = if (l.focal > 0) " %.1fmm".format(l.focal) else ""
@@ -294,7 +295,7 @@ class CameraControls(
     private fun toggleExposureLock() {
         val cam = camera() ?: return
         try {
-            if (cam.isExposureLockEnabled) cam.disableExposureLock() else cam.enableExposureLock()
+            if (cam.isExposureLockEnabled()) cam.disableExposureLock() else cam.enableExposureLock()
         } catch (_: Exception) {}
         updateToggleLabels()
     }
@@ -302,9 +303,9 @@ class CameraControls(
     private fun toggleStabilization() {
         val cam = camera() ?: return
         try {
-            if (cam.isVideoStabilizationEnabled) cam.disableVideoStabilization()
+            if (cam.isVideoStabilizationEnabled()) cam.disableVideoStabilization()
             else if (!cam.enableVideoStabilization()) toast("Ten telefon nie ma stabilizacji obrazu")
-            prefs.edit().putBoolean("cam_stab", cam.isVideoStabilizationEnabled).apply()
+            prefs.edit().putBoolean("cam_stab", cam.isVideoStabilizationEnabled()).apply()
         } catch (_: Exception) {}
         updateToggleLabels()
     }
@@ -327,8 +328,8 @@ class CameraControls(
         }
         try {
             mark(btnAf, cam?.isAutoFocusEnabled() == true, "Autofokus")
-            mark(btnAeLock, cam?.isExposureLockEnabled == true, "Blokada eksp.")
-            mark(btnStab, cam?.isVideoStabilizationEnabled == true, "Stabilizacja")
+            mark(btnAeLock, cam?.isExposureLockEnabled() == true, "Blokada eksp.")
+            mark(btnStab, cam?.isVideoStabilizationEnabled() == true, "Stabilizacja")
             mark(btnTorch, cam?.isLanternEnabled() == true, "Latarka")
         } catch (_: Exception) {}
     }

@@ -142,6 +142,25 @@
             android:entryValues="@array/samplerate_values" />
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="Telemetria">
+        <SwitchPreferenceCompat
+            android:key="telemetry_enabled"
+            android:title="Wysyłaj stan punktu"
+            android:summary="Bateria, temperatura, zasięg i jakość łącza na stronę realizatora. Zużywa ok. 0,5 kbps."
+            android:defaultValue="true" />
+        <EditTextPreference
+            android:key="telemetry_port"
+            android:title="Port telemetrii"
+            android:defaultValue="8080"
+            android:inputType="number"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:key="telemetry_host"
+            android:title="Inny adres telemetrii"
+            android:summary="Puste = ten sam serwer co SRT"
+            android:defaultValue="" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="Praca bez obsługi">
         <SwitchPreferenceCompat
             android:key="auto_reconnect"

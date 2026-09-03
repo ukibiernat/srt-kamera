@@ -43,6 +43,7 @@ class QrActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
             StreamService.instance?.rebuild()
+            SettingsActivity.needsReload = true
         }
         finish()
     }

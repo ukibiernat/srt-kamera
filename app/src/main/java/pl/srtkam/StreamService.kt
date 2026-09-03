@@ -64,6 +64,14 @@ class StreamService : Service(), ConnectChecker {
     var reconnects: Int = 0; private set
     var lastError: String = ""; private set
 
+    /** Czy kolejka wysylkowa sie zapycha - najlepszy wskaznik braku zapasu lacza */
+    var congested: Boolean = false; private set
+
+    /** Ile paczek czeka w kolejce na wyslanie */
+    var queueItems: Int = 0; private set
+
+    private var telemetry: Telemetry? = null
+
     private var streamStartedAt = 0L
     val uptimeSeconds: Long
         get() = if (streamStartedAt == 0L) 0 else (SystemClock.elapsedRealtime() - streamStartedAt) / 1000
@@ -190,6 +198,7 @@ class StreamService : Service(), ConnectChecker {
             stream.startStream(settings.buildUrl())
             streamStartedAt = SystemClock.elapsedRealtime()
             updateStatus("Laczenie...")
+            telemetry = Telemetry(applicationContext, this).also { it.start() }
             null
         } catch (e: Exception) {
             Log.e(TAG, "start error", e)
@@ -199,9 +208,13 @@ class StreamService : Service(), ConnectChecker {
     }
 
     fun stopStream() {
+        telemetry?.stop()
+        telemetry = null
         reconnecting = false
         streamStartedAt = 0L
         bitrateKbps = 0
+        congested = false
+        queueItems = 0
         genericStream?.let { if (it.isStreaming) it.stopStream() }
         bitrateAdapter = null
         releaseWakeLock()
@@ -282,9 +295,10 @@ class StreamService : Service(), ConnectChecker {
     override fun onNewBitrate(bitrate: Long) {
         bitrateKbps = bitrate / 1000
         val client = genericStream?.getStreamClient()
-        val congestion = try { client?.hasCongestion() ?: false } catch (e: Exception) { false }
+        congested = try { client?.hasCongestion() ?: false } catch (e: Exception) { false }
+        queueItems = try { client?.getItemsInCache() ?: 0 } catch (e: Exception) { 0 }
         droppedFrames = try { client?.getDroppedVideoFrames() ?: 0L } catch (e: Exception) { 0L }
-        bitrateAdapter?.adaptBitrate(bitrate, congestion)
+        bitrateAdapter?.adaptBitrate(bitrate, congested)
     }
 
     override fun onDisconnect() {

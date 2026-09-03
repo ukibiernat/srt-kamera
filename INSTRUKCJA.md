@@ -105,7 +105,51 @@ Dla kazdej kamery osobne zrodlo, zmieniajac `kam01` na `kam02` itd.
 
 ---
 
-## 5. Czego jeszcze nie sprawdzono
+## 5. Telemetria — strona podglądu dla realizatora
+
+Telefony co 5 sekund wysyłają pakiecik ze swoim stanem (ok. 0,5 kbps, czyli nic
+przy strumieniu wideo). Na serwerze stoi prosta strona, na której widać wszystkie
+punkty naraz.
+
+### Uruchomienie na VPS
+
+```bash
+sudo cp serwer.py /opt/srt-telemetria.py
+sudo cp srt-telemetria.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now srt-telemetria
+sudo ufw allow 8080/tcp
+```
+
+Strona: `http://ADRES_SERWERA:8080/`
+
+### Test lokalny (bez VPS)
+
+Na Macu, w folderze `telemetria`:
+
+```bash
+python3 serwer.py
+```
+
+Potem w aplikacji: Ustawienia → Telemetria → Inny adres telemetrii → adres MacBooka.
+Stronę otwierasz na `http://ADRES_MACBOOKA:8080/`.
+
+### Co pokazuje
+
+Kafelek na każdą kamerę: stan, bitrate, czas nadawania, bateria z informacją
+o ładowaniu, temperatura, zasięg w dBm i kreskach, typ sieci, szczyt bitrate'u
+w sesji, kolejka wysyłkowa, zgubione klatki i wznowienia.
+
+Kafelek pulsuje na czerwono przy: braku danych ponad 15 s, rozładowywaniu mimo
+ładowania, baterii poniżej 20%, temperaturze powyżej 45°C, zasięgu poniżej
+−110 dBm oraz zapchanym łączu.
+
+**Najważniejszy alarm to brak danych.** Dowiadujesz się, że punkt padł, zanim
+obraz zniknie z wizji.
+
+---
+
+## 6. Czego jeszcze nie sprawdzono
 
 Uczciwie: ten kod nie byl jeszcze skompilowany ani uruchomiony na twoim sprzecie.
 Spodziewaj sie, ze przy pierwszym budowaniu wyskocza bledy do poprawienia —

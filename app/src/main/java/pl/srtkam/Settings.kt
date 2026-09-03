@@ -70,6 +70,19 @@ class Settings(private val context: Context) {
     /** Wylacz podglad zaraz po starcie nadawania - mniej ciepla i baterii */
     val previewOffOnStart: Boolean get() = p.getBoolean("preview_off_on_start", false)
 
+    // --- Telemetria ---
+    val telemetryEnabled: Boolean get() = p.getBoolean("telemetry_enabled", true)
+    private val telemetryPort: Int get() = p.getString("telemetry_port", "8080")?.toIntOrNull() ?: 8080
+    private val telemetryHostOverride: String get() = (p.getString("telemetry_host", "") ?: "").trim()
+
+    /** Domyslnie ten sam serwer co SRT, tylko inny port. Mozna nadpisac. */
+    fun telemetryUrl(): String {
+        if (!telemetryEnabled) return ""
+        val h = telemetryHostOverride.ifBlank { host }
+        if (h.isBlank()) return ""
+        return "http://$h:$telemetryPort/t"
+    }
+
     /**
      * Adres SRT ze wszystkimi parametrami.
      * srt://host:port?streamid=X&latency=Y&passphrase=Z&pbkeylen=N
@@ -123,6 +136,9 @@ class Settings(private val context: Context) {
         put("auto", autoStart)
         put("boot", autoStartOnBoot)
         put("prevoff", previewOffOnStart)
+        put("tel", telemetryEnabled)
+        put("telport", telemetryPort)
+        put("telhost", telemetryHostOverride)
     }.toString()
 
     /** Wczytuje konfiguracje z kodu QR. Zwraca komunikat bledu albo null. */
@@ -153,6 +169,9 @@ class Settings(private val context: Context) {
                 putBoolean("auto_start", j.optBoolean("auto", false))
                 putBoolean("auto_start_boot", j.optBoolean("boot", false))
                 putBoolean("preview_off_on_start", j.optBoolean("prevoff", false))
+                putBoolean("telemetry_enabled", j.optBoolean("tel", true))
+                putString("telemetry_port", j.optInt("telport", 8080).toString())
+                putString("telemetry_host", j.optString("telhost", ""))
             }.apply()
             null
         } catch (e: Exception) {

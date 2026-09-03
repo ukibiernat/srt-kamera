@@ -8,6 +8,19 @@ import androidx.preference.PreferenceFragmentCompat
 
 class SettingsActivity : AppCompatActivity() {
 
+    companion object {
+        /** Ustawiane po wczytaniu konfiguracji z kodu QR */
+        var needsReload = false
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (needsReload) {
+            needsReload = false
+            recreate()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -42,17 +55,5 @@ class SettingsActivity : AppCompatActivity() {
             )
         }
 
-        override fun onResume() {
-            super.onResume()
-            // po powrocie ze skanera odswiez wyswietlane wartosci
-            preferenceScreen = null
-            setPreferencesFromResource(R.xml.preferences, null)
-            findPreference<Preference>("qr_scan")?.setOnPreferenceClickListener {
-                openQr(QrActivity.MODE_SCAN); true
-            }
-            findPreference<Preference>("qr_show")?.setOnPreferenceClickListener {
-                openQr(QrActivity.MODE_SHOW); true
-            }
-        }
     }
 }
