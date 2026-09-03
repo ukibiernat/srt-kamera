@@ -3,6 +3,7 @@ package pl.srtkam
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureRequest
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -49,6 +50,10 @@ class CameraControls(
     private var expMin = 0
     private var expMax = 0
     private var expStep = 1.0 / 6.0
+
+    /** Blokada automatyki ekspozycji i balansu bieli - stan trzymamy u siebie,
+     *  bo biblioteka w tej wersji nie udostepnia odczytu. */
+    private var imageLocked = false
 
     private fun camera(): Camera2Source? =
         StreamService.instance?.genericStream?.videoSource as? Camera2Source
@@ -103,7 +108,7 @@ class CameraControls(
         // --- przelaczniki ---
         val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
         btnAf = smallButton("Autofokus") { toggleAutofocus() }
-        btnAeLock = smallButton("Blokada eksp.") { toggleExposureLock() }
+        btnAeLock = smallButton("Blokada AE+WB") { toggleImageLock() }
         btnStab = smallButton("Stabilizacja") { toggleStabilization() }
         btnTorch = smallButton("Latarka") { toggleTorch() }
         row.addView(btnAf); row.addView(btnAeLock); row.addView(btnStab); row.addView(btnTorch)
@@ -240,6 +245,7 @@ class CameraControls(
                 }
                 try {
                     cam.openCameraId(id)
+                    imageLocked = false
                     container.postDelayed({ refresh() }, 700)
                 } catch (e: Exception) {
                     toast("Ten obiektyw nie jest dostępny: ${e.message}")
@@ -292,11 +298,31 @@ class CameraControls(
         updateToggleLabels()
     }
 
-    private fun toggleExposureLock() {
-        val cam = camera() ?: return
-        try {
-            if (cam.isExposureLockEnabled()) cam.disableExposureLock() else cam.enableExposureLock()
-        } catch (_: Exception) {}
+    /**
+     * Zamraza ekspozycje i balans bieli na biezacych wartosciach.
+     * Bez tego obraz "plywa" gdy ktos przejdzie przed kamera albo zmieni sie swiatlo -
+     * na wizji wyglada to najgorzej ze wszystkiego.
+     *
+     * Wersja 2.7.2 biblioteki nie ma gotowej metody, wiec ustawiamy to
+     * bezposrednio w zapytaniu do aparatu.
+     */
+    private fun toggleImageLock() {
+        val cam = camera()
+        if (cam == null) { toast("Kamera nieaktywna"); return }
+        val target = !imageLocked
+        val ok = try {
+            cam.setCustomRequest { builder ->
+                builder.set(CaptureRequest.CONTROL_AE_LOCK, target)
+                builder.set(CaptureRequest.CONTROL_AWB_LOCK, target)
+            }
+        } catch (e: Exception) { false }
+
+        if (ok) {
+            imageLocked = target
+            toast(if (target) "Ekspozycja i kolor zamrozone" else "Automatyka wlaczona")
+        } else {
+            toast("Ten telefon nie pozwala zablokowac automatyki")
+        }
         updateToggleLabels()
     }
 
@@ -328,7 +354,7 @@ class CameraControls(
         }
         try {
             mark(btnAf, cam?.isAutoFocusEnabled() == true, "Autofokus")
-            mark(btnAeLock, cam?.isExposureLockEnabled() == true, "Blokada eksp.")
+            mark(btnAeLock, imageLocked, "Blokada AE+WB")
             mark(btnStab, cam?.isVideoStabilizationEnabled() == true, "Stabilizacja")
             mark(btnTorch, cam?.isLanternEnabled() == true, "Latarka")
         } catch (_: Exception) {}

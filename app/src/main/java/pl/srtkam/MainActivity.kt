@@ -202,7 +202,6 @@ class MainActivity : AppCompatActivity() {
                         as? com.pedro.encoder.input.sources.video.Camera2Source
                 try {
                     cam?.tapToFocus(view, event)
-                    cam?.tapToMeterExposure(view, event)
                 } catch (_: Exception) {}
                 view.performClick()
             }
