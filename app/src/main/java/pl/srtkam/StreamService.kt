@@ -243,8 +243,8 @@ class StreamService : Service(), ConnectChecker {
                 val filter = TextObjectFilterRender()
                 gl.setFilter(filter)
                 filter.setText(settings.cameraName, 48f, Color.WHITE)
-                val size = gl.encoderSize
-                filter.setDefaultScale(size.x, size.y)
+                // rozmiar bierzemy z ustawien - nie zalezymy od wlasciwosci silnika renderowania
+                filter.setDefaultScale(settings.width, settings.height)
                 filter.setPosition(TranslateTo.TOP_LEFT)
                 filter.setAlpha(0.5f)
             } else {
